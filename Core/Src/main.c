@@ -130,7 +130,6 @@ static void MX_USART1_UART_Init(void);
 static void MX_DMA2D_Init(void);
 static void MX_SAI2_Init(void);
 void StartDefaultTask(void const * argument);
-void AudioTask(void const * argument);
 void StartSD(void const * argument);
 void StartRecord(void const * argument);
 
@@ -206,13 +205,6 @@ void SD_Init() {
 			BSP_LCD_DisplayStringAt(0, 50, (uint8_t*) "SD - Formatage Ok",
 					CENTER_MODE);
 			//Open file for writing (Create)
-			if (f_open(&SDFile, "RECORD.WAV",
-			FA_CREATE_ALWAYS | FA_WRITE | FA_READ) != FR_OK) {
-				Error_Handler();
-			} else {
-				BSP_LCD_DisplayStringAt(0, 60, (uint8_t*) "SD - Open Ok",
-						CENTER_MODE);
-			}
 		}
 	}
 }
@@ -232,7 +224,7 @@ void Audio_Init() {
 
 	/* Start Recording */
 	BSP_AUDIO_IN_Record((uint16_t*) AUDIO_BUFFER_IN, AUDIO_BLOCK_SIZE);
-	BSP_AUDIO_IN_SetVolume(210);
+	BSP_AUDIO_IN_SetVolume(140);
 	BSP_AUDIO_OUT_SetVolume(60);
 	/* Start Playback */
 	BSP_AUDIO_OUT_SetAudioFrameSlot(CODEC_AUDIOFRAME_SLOT_02);
@@ -303,7 +295,9 @@ void write_header(uint32_t N_Bytes_Data) {
 			};
 	f_lseek(&SDFile, 0);
 	f_write(&SDFile, entete, 44, (void*) &byteswritten);
-	BSP_LCD_DisplayStringAt(0, 170, (uint8_t*) "En tete - OK", CENTER_MODE);
+	BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_DisplayStringAt(0, 190, (uint8_t*) "En tete - OK", CENTER_MODE);
 }
 /* USER CODE END 0 */
 
@@ -378,10 +372,6 @@ int main(void)
   /* definition and creation of defaultTask */
   osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 512);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* definition and creation of Audio */
-  osThreadDef(Audio, AudioTask, osPriorityLow, 0, 512);
-  AudioHandle = osThreadCreate(osThread(Audio), NULL);
 
   /* definition and creation of SD */
   osThreadDef(SD, StartSD, osPriorityRealtime, 0, 512);
@@ -1255,7 +1245,10 @@ void StartDefaultTask(void const * argument)
 				}
 				break;
 			case 101:
-				if (TS_State.touchDetected==0)etat=1;
+				if (TS_State.touchDetected==0){
+					f_open(&SDFile, "RECORD.WAV", FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+					etat=1;
+				}
 				break;
 			case 1:
 				if (InCircle(Touch, OFF_BUTTON, R/2)){
@@ -1272,7 +1265,13 @@ void StartDefaultTask(void const * argument)
 				}
 				break;
 			case 10:
-				if (TS_State.touchDetected==0)etat=0;
+				if (TS_State.touchDetected==0){
+					etat=0;
+					if (record_OK){
+						write_header(NB_Bloc*AUDIO_BLOCK_SIZE);
+						f_close(&SDFile);
+					}
+				}
 				break;
 			case 12:
 				if (TS_State.touchDetected==0){
@@ -1300,7 +1299,13 @@ void StartDefaultTask(void const * argument)
 				}
 				break;
 			case 20:
-				if (TS_State.touchDetected==0)etat=0;
+				if (TS_State.touchDetected==0){
+					etat=0;
+					if (record_OK){
+						write_header(NB_Bloc*AUDIO_BLOCK_SIZE);
+						f_close(&SDFile);
+					}
+				}
 				break;
 			case 23:
 				if (TS_State.touchDetected==0){
@@ -1326,7 +1331,13 @@ void StartDefaultTask(void const * argument)
 				}
 				break;
 			case 30:
-				if (TS_State.touchDetected==0)etat=0;
+				if (TS_State.touchDetected==0){
+					etat=0;
+					if (record_OK){
+						write_header(NB_Bloc*AUDIO_BLOCK_SIZE);
+						f_close(&SDFile);
+					}
+				}
 				break;
 			case 31:
 				if (TS_State.touchDetected==0)etat=1;
@@ -1342,32 +1353,6 @@ void StartDefaultTask(void const * argument)
 		vTaskDelay(20);
 	}
   /* USER CODE END 5 */
-}
-
-/* USER CODE BEGIN Header_AudioTask */
-/**
- * @brief Function implementing the Audio thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_AudioTask */
-void AudioTask(void const * argument)
-{
-  /* USER CODE BEGIN AudioTask */
-	int ok = 1;
-	//uint32_t byteswritten;
-	/* Infinite loop */
-	for (;;) {
-		osDelay(1000);
-		if (fin_record && ok) {
-			//BSP_AUDIO_OUT_Pause();
-			//write_header(2 * AUDIO_BLOCK_SIZE * L);
-			//f_close(&SDFile);
-			f_lseek(&SDFile, 44);
-			ok = 0;
-		}
-	}
-  /* USER CODE END AudioTask */
 }
 
 /* USER CODE BEGIN Header_StartSD */
@@ -1416,7 +1401,7 @@ void StartRecord(void const * argument)
 		  NB_Bloc++;
 	  }
 	  if (i==2){
-		  if (Bloc_Cursor++==NB_Bloc){
+		  if (Bloc_Cursor++==NB_Bloc-1){
 			  f_lseek(&SDFile, 44);
 			  Bloc_Cursor=0;
 		  }
@@ -1425,7 +1410,7 @@ void StartRecord(void const * argument)
 		  Addition(0);
 	  }
 	  if (i==3){
-		  if (Bloc_Cursor++==NB_Bloc){
+		  if (Bloc_Cursor++==NB_Bloc-1){
 			  f_lseek(&SDFile, 44);
 			  Bloc_Cursor=0;
 		  }
