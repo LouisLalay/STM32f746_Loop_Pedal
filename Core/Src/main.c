@@ -224,8 +224,8 @@ void Audio_Init() {
 
 	/* Start Recording */
 	BSP_AUDIO_IN_Record((uint16_t*) AUDIO_BUFFER_IN, AUDIO_BLOCK_SIZE);
-	BSP_AUDIO_IN_SetVolume(140);
-	BSP_AUDIO_OUT_SetVolume(60);
+	BSP_AUDIO_IN_SetVolume(191);
+	BSP_AUDIO_OUT_SetVolume(50);
 	/* Start Playback */
 	BSP_AUDIO_OUT_SetAudioFrameSlot(CODEC_AUDIOFRAME_SLOT_02);
 	if (BSP_AUDIO_OUT_Play((uint16_t*) AUDIO_BUFFER_OUT,
